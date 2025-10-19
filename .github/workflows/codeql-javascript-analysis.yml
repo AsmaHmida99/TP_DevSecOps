@@ -1,0 +1,58 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  analyze:
+    name: Analyze code with CodeQL
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Récupérer le code du repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Initialiser CodeQL pour le langage JavaScript
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: javascript
+
+      # 3️⃣ Exécuter l'analyse CodeQL
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          output: codeql-results  # dossier où les résultats seront stockés (SARIF par défaut)
+
+      # 4️⃣ Installer Node.js pour convertir SARIF en HTML
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      # 5️⃣ Installer codeql CLI (pour convertir SARIF en HTML)
+      - name: Install CodeQL CLI
+        run: |
+          curl -L https://github.com/github/codeql-cli-binaries/releases/latest/download/codeql-cli-linux64.zip -o codeql-cli.zip
+          unzip codeql-cli.zip -d codeql
+          export PATH="$PWD/codeql:$PATH"
+
+      # 6️⃣ Convertir SARIF en HTML
+      - name: Convert SARIF to HTML
+        run: |
+          mkdir codeql-results/html
+          for file in codeql-results/*.sarif; do
+            codeql resolve languages > /dev/null
+            codeql analyze "$file" --format=html --output="codeql-results/html/${file##*/}.html"
+          done
+
+      # 7️⃣ Sauvegarder le rapport HTML comme artifact
+      - name: Upload CodeQL HTML report
+        uses: actions/upload-artifact@v3
+        with:
+          name: codeql-html-report
+          path: codeql-results/html
